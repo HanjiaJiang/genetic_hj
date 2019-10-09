@@ -1,24 +1,35 @@
+# Run microcircuit and evaluate the correlation
 import sys
 import numpy as np
-import matplotlib.pyplot as plt
 from random import sample
-on_server = True
-if not on_server:
-    sys.path.insert(1, '/home/hanjia/Documents/microcircuit/')
-import network
-from network_params import net_dict
-from sim_params import sim_dict
-from stimulus_params import stim_dict
-from scan_params import *
-import microcircuit_tools as tools
 import multiprocessing as mp
 
+# settings
+on_server = True
 run_sim = True
 run_calc = True
 stim_times = np.arange(2000.0, 12000.0, 1000.0)
 stim_length = 1000.0
 bin_width = 125.0
 
+# import microcircuit modules
+if not on_server:
+    sys.path.insert(1, '/home/hanjia/Documents/microcircuit/')
+import network
+from network_params import net_dict
+from sim_params import sim_dict
+from stimulus_params import stim_dict
+# from scan_params import *
+import microcircuit_tools as tools
+
+if on_server:
+    cpu_ratio = 1
+else:
+    cpu_ratio = 0.5
+sim_dict['local_num_threads'] = int(mp.cpu_count()*cpu_ratio)
+
+
+# evaluate L2/3 correlations; max 500 cells per population
 def network_corr(path, name, stim_ts, stim_len, bin_wid):
     print('start data processing...')
     begin = stim_ts[0]
@@ -93,29 +104,27 @@ def network_corr(path, name, stim_ts, stim_len, bin_wid):
     return net_coef_arr
 
 
-net_dict['conn_probs'] = np.load('conn_probs.npy')
-if on_server:
-    cpu_ratio = 1
-else:
-    cpu_ratio = 0.5
-sim_dict['local_num_threads'] = int(mp.cpu_count()*cpu_ratio)
-sim_dict['t_sim'] = 12000.0
-net_dict['K_ext'] = np.array([2000, PV_ext_scan, SOM_ext_scan, VIP_ext_scan,
-                              2000, PV_ext_scan, SOM_ext_scan,
-                              2000, PV_ext_scan, SOM_ext_scan,
-                              2000, PV_ext_scan, SOM_ext_scan])
-net_dict['g'] = g_scan
-net_dict['bg_rate'] = bg_scan
-stim_dict['thalamic_input'] = False
+def change_parameters(sim_d, net_d, stim_d):
+    sim_d['t_sim'] = 12000.0
+    net_d['conn_probs'] = np.load('conn_probs.npy')
+    net_d['K_ext'] = np.array([3000, 2600, 1200, 500,
+                                  2700, 2400, 2800,
+                                  1900, 2600, 1300,
+                                  2400, 2400, 2100])
+    net_d['g'] = 4.0
+    net_d['bg_rate'] = 4.0
+    stim_d['thalamic_input'] = False
+    return sim_d, net_d, stim_d
+
 
 if run_sim:
+    sim_dict, net_dict, stim_dict = change_parameters(sim_dict, net_dict, stim_dict)
     net = network.Network(sim_dict, net_dict, stim_dict)
     net.setup()
     net.simulate()
     tools.plot_raster(
         sim_dict['data_path'], 'spike_detector', 1900.0, 2100.0
     )
-    plt.close()
 
 if run_calc:
     tmp_arr = network_corr(
@@ -123,21 +132,11 @@ if run_calc:
     np.save('coef_arr.npy', tmp_arr)
     tools.fire_rate(sim_dict['data_path'], 'spike_detector', 2000.0, 12000.0)
     tools.boxplot(net_dict, sim_dict['data_path'])
+else:
+    np.save('coef_arr.npy', np.random.random((4, 4)))
 
 coef_arr = np.load('coef_arr.npy')
 print(coef_arr)
 
 labels = ['E', 'PV', 'SOM', 'VIP']
 tools.interaction_barplot(coef_arr, -0.1, 0.25, labels, 'mean corr coef')
-# x = np.arange(len(labels))
-# barwidth = 0.1
-# fig, ax = plt.subplots(figsize=(12, 12))
-# for i in range(4):
-#     ax.bar(x + barwidth*(i - 1.5), coef_arr[i, :], barwidth, label=labels[i])
-# ax.set_xticks(x)
-# ax.set_xticklabels(labels)
-# ax.legend()
-# plt.ylim((-0.1, 0.25))
-# fig.tight_layout()
-# plt.savefig('corr_model.png')
-# plt.show()

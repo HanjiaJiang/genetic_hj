@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import time
 from batch_genetic import batch_genetic
 
-on_server = False
+on_server = True
 
 N_ind = 20      # number of individuals in a population
 p_cx = 0.8      # cross-over probability
@@ -34,20 +34,17 @@ def create_individual():
     return origin_probs
 
 # fitness
-def evaluate(ind, origin_map, result, target):
+def evaluate(ind_map, origin_map, result_corr, target_corr):
     # deviation from original map
-    origin_probs_l23 = origin_map[:4, :4].flatten()
-    np.save('ind.npy', ind)    
-    #tmp = ind.flatten(ind)
-    #ind_probs = np.concatenate((tmp[0:4], tmp[13:17], tmp[26:30], tmp[39:43]))
-    ind_probs = np.array(ind)[:4,:4].flatten()
+    origin_map = origin_map[:4, :4].flatten()
+    ind_map = np.array(ind)[:4, :4].flatten()
     devs = []
-    for prob1, prob2 in zip(ind_probs, origin_probs_l23):
+    for prob1, prob2 in zip(ind_map, origin_map):
         devs.append(prob1 - prob2)
 
     # correlation
-    t_arr = target.flatten()
-    r_arr = result.flatten()
+    t_arr = target_corr.flatten()
+    r_arr = result_corr.flatten()
     # take out repeated elements; to be improved
     t_arr = np.concatenate((
         t_arr[0:1], t_arr[4:6], t_arr[8:11], t_arr[12:16]))
