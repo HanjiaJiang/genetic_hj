@@ -1,11 +1,12 @@
 # Run microcircuit and evaluate the correlation
+import os
 import sys
 import numpy as np
 from random import sample
 import multiprocessing as mp
 
 # settings
-on_server = True
+on_server = False
 run_sim = True
 run_calc = True
 stim_times = np.arange(2000.0, 12000.0, 1000.0)
@@ -13,13 +14,13 @@ stim_length = 1000.0
 bin_width = 125.0
 
 # import microcircuit modules
-if not on_server:
-    sys.path.insert(1, '/home/hanjia/Documents/microcircuit/')
+microcircuit_path = '/home/hanjia/Documents/microcircuit/'
+if os.path.isdir(microcircuit_path):
+    sys.path.insert(1, microcircuit_path)
 import network
 from network_params import net_dict
 from sim_params import sim_dict
 from stimulus_params import stim_dict
-# from scan_params import *
 import microcircuit_tools as tools
 
 if on_server:

@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import time
 from batch_genetic import batch_genetic
 
-on_server = True
+on_server = False
 
 N_ind = 20      # number of individuals in a population
 p_cx = 0.8      # cross-over probability
@@ -21,7 +21,7 @@ mut_degrees = [0.3, 0.05]    # s.d. of mutation range (unit: times of mean)
 set_mut_bound = False
 mut_bound = [0.5, 1.5]
 
-target_corr = np.array([[0.123, 0.145, 0.112, 0.113],
+target_arr = np.array([[0.123, 0.145, 0.112, 0.113],
                         [0.145, 0.197, 0.163, 0.193],
                         [0.112, 0.163, 0.211, 0.058],
                         [0.113, 0.193, 0.058, 0.186]])
@@ -30,36 +30,51 @@ workingdir = os.getcwd()
 
 origin_probs = np.load('conn_probs_ini.npy')
 
+
 def create_individual():
     return origin_probs
 
+
 # fitness
 def evaluate(ind_map, origin_map, result_corr, target_corr):
-    # deviation from original map
     origin_map = origin_map[:4, :4].flatten()
-    ind_map = np.array(ind)[:4, :4].flatten()
-    devs = []
-    for prob1, prob2 in zip(ind_map, origin_map):
-        devs.append(prob1 - prob2)
+    ind_map = np.array(ind_map)[:4, :4].flatten()
+    t_arr = np.array([])
+    r_arr = np.array([])
+    for i in range(4):
+        for j in range(4):
+            if j >= i:
+                t_arr = np.append(t_arr, target_corr[i, j])
+                r_arr = np.append(r_arr, result_corr[i, j])
 
-    # correlation
-    t_arr = target_corr.flatten()
-    r_arr = result_corr.flatten()
-    # take out repeated elements; to be improved
-    t_arr = np.concatenate((
-        t_arr[0:1], t_arr[4:6], t_arr[8:11], t_arr[12:16]))
-    r_arr = np.concatenate((
-        r_arr[0:1], r_arr[4:6], r_arr[8:11], r_arr[12:16]))
-    fits = []
+    # fitness tuple to be returned
+    tup = ()
+
+    # deviation from original map
+    for conn1, conn2 in zip(ind_map, origin_map):
+        dev = np.abs(conn1 - conn2)
+        if not tup:
+            tup = (dev, )
+        else:
+            tup = tup + (dev, )
+
+    # distance to target correlations
     for t, r in zip(t_arr, r_arr):
+        # break if nan appears
         if np.isnan(t) or np.isnan(r):
-            fits = np.full(10, 10.0)
+            for i in range(26):
+                if i == 0:
+                    tup = (10,)
+                else:
+                    tup = tup + (10,)
             break
-        fits.append(np.abs(t-r))
-    return (devs[0], devs[1], devs[2], devs[3], devs[4], devs[5], devs[6], devs[7],
-            devs[8], devs[9], devs[10], devs[11], devs[12], devs[13], devs[14], devs[15],
-            fits[0], fits[1], fits[2], fits[3], fits[4],
-            fits[5], fits[6], fits[7], fits[8], fits[9])
+        dev = np.abs(t - r)
+        if not tup:
+            tup = (dev, )
+        else:
+            tup = tup + (dev, )
+
+    return tup
 
 
 def cxOnePointStr(ind1, ind2):
@@ -105,15 +120,25 @@ def mutSNP1(ind, p):
                     new[i][j] = new_conn
     return type(ind)(new)
 
-def clone_ind(ind_list, times):
-    indCls = type(ind_list[0])
-    return_list = []
-    if times < 1:
-        times = 1
-    for t in range(times):
-        for ind in ind_list:
-            return_list.append(indCls(ind))    
-    return return_list
+# def clone_ind(ind_list, times):
+#     indCls = type(ind_list[0])
+#     return_list = []
+#     if times < 1:
+#         times = 1
+#     for t in range(times):
+#         for ind in ind_list:
+#             return_list.append(indCls(ind))
+#     return return_list
+#
+# def combine_pop(pop1, pop2):
+#     indCls = type(pop1[0])
+#     return_list = []
+#     for ind1 in pop1:
+#         return_list.append(indCls(ind1))
+#     for ind2 in pop2:
+#         return_list.append(indCls(ind2))
+#     return return_list
+
 
 def do_and_check(survivors, g):
     if on_server:
@@ -165,70 +190,92 @@ box.register('mutate', mutSNP1)
 box.register('select', tools.selNSGA2)
 #box.register('select', tools.selTournament, tournsize=3)
 
+def clone_ind(ind_list, times):
+    indCls = type(ind_list[0])
+    return_list = []
+    if times < 1:
+        times = 1
+    for t in range(times):
+        for ind in ind_list:
+            return_list.append(box.clone(ind))
+    return return_list
+
+def combine_pop(pop1, pop2):
+    indCls = type(pop1[0])
+    return_list = []
+    for ind1 in pop1:
+        return_list.append(box.clone(ind1))
+    for ind2 in pop2:
+        return_list.append(box.clone(ind2))
+    return return_list
+
 ### INITIALIZATION
 population = box.pop(n=N_ind)
+for ind in population:
+    ind.fitness.values = (10.0, 10.0, 10.0, 10.0,10.0, 10.0,10.0, 10.0,10.0, 10.0,10.0, 10.0,10.0, 10.0,10.0, 10.0,10.0, 10.0,10.0, 10.0,10.0, 10.0,10.0, 10.0,10.0, 10.0)
 
 # ### EVOLUTION
 g = 0
-fits = [10 for i in population]
-fitness_evolved = np.zeros((max_generations, 5))
-best5_inds_evolved = np.zeros((max_generations, 5))
-n_front = int(N_ind/4)
-# Target: fitness (RMSE) of pre- vs. post-learning exp. data ~= 0.06
-# evolved fitness should be at least smaller than this level
+# fits = [10 for i in population]
+fitness_evolved = []
+# fitness_evolved = np.zeros((max_generations, 5))
+# best5_inds_evolved = np.zeros((max_generations, 5))
+n_front = int(N_ind/2)
 while g < max_generations:
     ## SELECTION
-    survivors = box.select(population, n_front)    
-    survivors = clone_ind(survivors, int(N_ind/n_front))
-    # survivors = box.select(population, len(population))
-    # np.save('fitness.npy', survivors[0].fitness.values)
+    children = clone_ind(population, 1)
+    # survivors = clone_ind(survivors, int(N_ind/n_front))
 
     ## GENETIC OPERATIONS
     # crossing-over
-    half = int(len(survivors) / 2)
+    half = int(len(children) / 2)
     chances = np.random.random(size=half)
     chances = np.where(chances <= p_cx)[0]
     for i in chances:
-        new1, new2 = box.crossover(survivors[i], survivors[i + 1])
-        survivors[i] = new1
-        survivors[i + 1] = new2
+        new1, new2 = box.crossover(children[i], children[i + 1])
+        children[i] = new1
+        children[i + 1] = new2
         # new1 and new2 are new instances of Individual class, so there is no
         # need to delete or invalidate their fitness values
 
     # mutation
-    for i, ind in enumerate(survivors):
-        survivors[i] = box.mutate(ind, p_mut)    
+    for i, ind in enumerate(children):
+        children[i] = box.mutate(ind, p_mut)
 
     # SIMULATION
-    do_and_check(survivors, g)
-    np.save('survivors.npy', survivors)
+    do_and_check(children, g)
+    # np.save('survivors.npy', children)
 
     # EVALUATION
-    for i, ind in enumerate(survivors):
+    for i, ind in enumerate(children):
         corr_file = os.getcwd() + '/output/g={0:02d}_ind={1:02d}/'.format(g, i) + 'coef_arr.npy'
         if os.path.isfile(corr_file):
             result_arr = np.load(corr_file)
         else:
             result_arr = np.full((4, 4), np.nan)
-        ind.fitness.values = box.evaluate(ind, origin_probs, result_arr, target_corr)
+        ind.fitness.values = box.evaluate(ind, origin_probs, result_arr, target_arr)
 
-    population[:] = survivors
-    fits = [np.sum(i.fitness.values) for i in population]
-    # print('generation {} min. FitMin is {}'.format(g, min(fits)))
-    print('fitness values = {}'.format(fits))
+    population = combine_pop(population, children)
+    population = box.select(population, n_front)
+    population = clone_ind(population, int(N_ind/n_front))
+    for ind in population:
+        print('g{:02d} fitness values = '.format(g))
+        print(ind.fitness.values)
 
     # save fitness values
-    fitness_evolved[g, :] = np.array(
-        [np.sum(population[i].fitness.values) for i in np.argsort(fits)])[:5]
+    tmp = [list(ind.fitness.values) for ind in population]
+    fitness_evolved.append(tmp)
     np.save(
         workingdir + '/output/fitness_evolved_g{:02d}.npy'.format(g),
         fitness_evolved)
 
-    # save evolved better individuals
-    best5_inds_evolved[g, :] = np.arange(0, 20)[np.argsort(fits)[:5]]
+    # save order by fitness sum
+    fitness_sum = [np.sum(i.fitness.values) for i in population]
+    print('fitness sums = {}\n'.format(fitness_sum))
+    order_by_fitness = np.arange(0, 20)[np.argsort(fitness_sum)]
     np.save(
-        workingdir + '/output/inds_evolved_g{:02d}.npy'.format(g),
-        best5_inds_evolved)
+        workingdir + '/output/order_by_fitness_sum_g{:02d}.npy'.format(g),
+        order_by_fitness)
 
     # delete .gdf files to save space
     for i in range(N_ind):
