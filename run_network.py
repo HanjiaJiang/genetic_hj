@@ -6,23 +6,33 @@ from random import sample
 import multiprocessing as mp
 
 # settings
-on_server = False
-run_sim = True
-run_calc = True
-stim_times = np.arange(2000.0, 12000.0, 1000.0)
+on_server = True
+run_sim = False
+run_calc = False
+
+# to evaluate
+eval_corr = True
+eval_fr = False
+
+t_sim = 12000.0
+stim_times = np.arange(2000.0, t_sim, 1000.0)
 stim_length = 1000.0
 bin_width = 125.0
 
 # import microcircuit modules
 microcircuit_path = '/home/hanjia/Documents/microcircuit/'
+analysis_path = '/home/hanjia/Documents/analysis/'
 if os.path.isdir(microcircuit_path):
     sys.path.insert(1, microcircuit_path)
+if os.path.isdir(analysis_path):
+    sys.path.insert(1, analysis_path)
 import network
 from network_params import net_dict
 from sim_params import sim_dict
 from stimulus_params import stim_dict
 import microcircuit_tools as tools
 
+# assign cpu using ratio
 if on_server:
     cpu_ratio = 1
 else:
@@ -106,12 +116,15 @@ def network_corr(path, name, stim_ts, stim_len, bin_wid):
 
 
 def change_parameters(sim_d, net_d, stim_d):
-    sim_d['t_sim'] = 12000.0
-    net_d['conn_probs'] = np.load('conn_probs.npy')
-    net_d['K_ext'] = np.array([3000, 2600, 1200, 500,
-                                  2700, 2400, 2800,
-                                  1900, 2600, 1300,
-                                  2400, 2400, 2100])
+    sim_d['t_sim'] = t_sim
+    if eval_corr is True:
+        net_d['conn_probs'] = np.load('conn_probs.npy')
+    elif eval_fr is True:
+        net_d['K_ext'] = np.load('conn_probs.npy')
+    # net_d['K_ext'] = np.array([3000, 2600, 1200, 500,
+    #                               2700, 2400, 2800,
+    #                               1900, 2600, 1300,
+    #                               2400, 2400, 2100])
     net_d['g'] = 4.0
     net_d['bg_rate'] = 4.0
     stim_d['thalamic_input'] = False
@@ -127,17 +140,26 @@ if run_sim:
         sim_dict['data_path'], 'spike_detector', 1900.0, 2100.0
     )
 
+# for testing
+coef_arr = np.random.random((4, 4))
+mean_fr = np.random.random(13)
+# for real
 if run_calc:
-    tmp_arr = network_corr(
-        sim_dict['data_path'], 'spike_detector', stim_times, stim_length, bin_width)
-    np.save('coef_arr.npy', tmp_arr)
-    tools.fire_rate(sim_dict['data_path'], 'spike_detector', 2000.0, 12000.0)
+    mean_fr_cache, std_fr = tools.fire_rate(sim_dict['data_path'], 'spike_detector', 1000.0, 2000.0)
     tools.boxplot(net_dict, sim_dict['data_path'])
-else:
-    np.save('coef_arr.npy', np.random.random((4, 4)))
+    if eval_corr:
+        coef_arr = network_corr(
+            sim_dict['data_path'], 'spike_detector', stim_times, stim_length,
+            bin_width)
+    mean_fr = mean_fr_cache
 
-coef_arr = np.load('coef_arr.npy')
-print(coef_arr)
+np.save('mean_fr.npy', mean_fr)
 
-labels = ['E', 'PV', 'SOM', 'VIP']
-tools.interaction_barplot(coef_arr, -0.1, 0.25, labels, 'mean corr coef')
+# output corr results
+if eval_corr:
+    np.save('coef_arr.npy', coef_arr)
+    print('corr. coef. = ')
+    print(coef_arr)
+    labels = ['E', 'PV', 'SOM', 'VIP']
+    tools.interaction_barplot(coef_arr, -0.1, 0.25, labels, 'mean corr coef')
+

@@ -57,14 +57,14 @@ def batch_genetic(conn_maps, g, map_ids):
         f.write('#SBATCH -e ./data/errorfile.txt' + '\n')
         # request a total of nodes*processes_per_node for this job
         f.write('#SBATCH --ntasks=1\n')
-        f.write('#SBATCH --cpus-per-task=24\n')
+        f.write('#SBATCH --cpus-per-task=48\n')
         f.write('#SBATCH --ntasks-per-node=1\n')
         # request processor time
         f.write('#SBATCH --time=04:00:00\n')
         f.write('source $HOME/.bashrc\n')
-        f.write('conda activate nest-log\n')
+        f.write('conda activate nest\n')
         f.write(
-            'source $HOME/opt/nest-lognormal/bin/nest_vars.sh\n')
+            'source $HOME/hanjia/opt/nest-lognormal-nest/bin/nest_vars.sh\n')
         f.write('python %s\n' % this_pyf_name)
         f.close()
 
