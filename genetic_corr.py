@@ -22,8 +22,6 @@ mut_degrees = {'major': 0.3, 'minor': 0.05}
 set_mut_bound = False
 mut_bound = [0.5, 1.5]
 
-np.set_printoptions(precision=4, suppress=True)
-
 target_arr = np.array([[0.123, 0.145, 0.112, 0.113],
                         [0.145, 0.197, 0.163, 0.193],
                         [0.112, 0.163, 0.211, 0.058],
@@ -40,8 +38,8 @@ def create_individual():
 
 # fitness
 def evaluate(ind_map, origin_map, result_corr, target_corr):
-    origin_map = origin_map[:4, :4].flatten()
-    ind_map = np.array(ind_map)[:4, :4].flatten()
+    # origin_map = origin_map[:4, :4].flatten()
+    # ind_map = np.array(ind_map)[:4, :4].flatten()
     t_arr = np.array([])
     r_arr = np.array([])
     for i in range(4):
@@ -54,12 +52,12 @@ def evaluate(ind_map, origin_map, result_corr, target_corr):
     tup = ()
 
     # deviation from original map
-    for conn1, conn2 in zip(ind_map, origin_map):
-        dev = np.abs(conn1 - conn2)
-        if not tup:
-            tup = (dev, )
-        else:
-            tup = tup + (dev, )
+    # for conn1, conn2 in zip(ind_map, origin_map):
+    #     dev = np.abs(conn1 - conn2)
+    #     if not tup:
+    #         tup = (dev, )
+    #     else:
+    #         tup = tup + (dev, )
 
     # distance to target correlations
     for t, r in zip(t_arr, r_arr):
@@ -161,7 +159,7 @@ def do_and_check(survivors, g):
 
 
 # fitness function should minimize the difference between present and target str
-creator.create('FitMin', base.Fitness, weights=(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1))
+creator.create('FitMin', base.Fitness, weights=(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1))
 # individual is a list (conn map)
 creator.create('Individual', list, fitness=creator.FitMin)  # , n=len(target))
 
@@ -181,11 +179,8 @@ box.register('select', tools.selNSGA2)
 ### INITIALIZATION
 population = box.pop(n=N_ind)
 for ind in population:
-    ind.fitness.values = (10.0, 10.0, 10.0, 10.0, 10.0, 10.0,
-                          10.0, 10.0, 10.0, 10.0, 10.0, 10.0,
-                          10.0, 10.0, 10.0, 10.0, 10.0, 10.0,
-                          10.0, 10.0, 10.0, 10.0, 10.0, 10.0,
-                          10.0, 10.0)
+    ind.fitness.values = (10.0, 10.0, 10.0, 10.0, 10.0,
+                          10.0, 10.0, 10.0, 10.0, 10.0)
 
 # ### EVOLUTION
 g = 0
@@ -195,6 +190,8 @@ fitness_evolved = []
 # best5_inds_evolved = np.zeros((max_generations, 5))
 n_front = int(N_ind/2)
 while g < max_generations:
+    np.set_printoptions(precision=4, suppress=True)
+
     ## SELECTION
     children = clone_ind(population, 1)
     # survivors = clone_ind(survivors, int(N_ind/n_front))
@@ -233,7 +230,7 @@ while g < max_generations:
         print(np.sum(ind))
         print(ind.fitness.values)
     population = combine_pop(population, children)
-    print('\ng{:02d} parents and children = '.format(g))
+    print('\ng{:02d} parents and children combined = '.format(g))
     for ind in population:
         print(np.sum(ind))
         print(ind.fitness.values)
