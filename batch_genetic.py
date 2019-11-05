@@ -37,8 +37,7 @@ def batch_genetic(conn_maps, g, map_ids):
         os.system('cp helpers.py ' + full_output_dir)
         os.system('cp stimulus_params.py ' + full_output_dir)
         os.system('cp conn.py ' + full_output_dir)
-        os.system('cp functions.py ' + full_output_dir)
-        os.system('cp scan_params.py ' + full_output_dir)
+        os.system('cp functions.py ' + full_output_dir)        
         os.system('cp microcircuit_tools.py ' + full_output_dir)
         np.save(os.path.join(full_output_dir, 'conn_probs.npy'), map)
 

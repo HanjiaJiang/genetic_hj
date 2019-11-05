@@ -16,8 +16,8 @@ wait_1min = False
 N_ind = 20      # number of individuals in a population
 p_cx = 0.8      # cross-over probability
 p_mut = 0.2     # mutation probability
-max_generations = 20
-mut_degrees = {'major': 0.3, 'minor': 0.05}    # s.d. of mutation range (unit: times of mean)
+max_generations = 30
+mut_degrees = {'major': 0.05, 'minor': 0.01}    # s.d. of mutation range (unit: times of mean)
 set_mut_bound = False
 mut_bound = [0.5, 1.5]
 
@@ -29,61 +29,31 @@ target_arr = np.array([2.7, 13.8, 2.6, 14.6,
                        6.8, 7.5, 2.8,
                        6.1, 16.9, 3.9])
 
-# dia_arr_exp = np.array([
-#     [100.0, 141.0, 100.0, 0.0, 100.0, 141.0, 0.0, 100.0, 106.0, 106.0, 100.0,
-#      0.0, 0.0],
-#     [88.00, 141.0, 100.0, 0.0, 141.0, 0.0, 0.0, 106.0, 106.0, 106.0, 0.0, 0.0,
-#      0.0],
-#     [88.00, 141.0, 0.0, 141.0, 0.0, 0.0, 0.0, 0.0, 106.0, 0.0, 0.0, 0.0, 0.0],
-#     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-#
-#     [100.0, 100.0, 0.0, 0.0, 100.0, 100.0, 100.0, 100.0, 0.0, 0.0, 100.0, 0.0,
-#      0.0],
-#     [0.0, 0.0, 0.0, 0.0, 100.0, 100.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-#     [0.0, 0.0, 0.0, 0.0, 100.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-#
-#     [100.0, 106.0, 106.0, 0.0, 100.0, 0.0, 0.0, 100.0, 141.0, 141.0, 100.0,
-#      0.0, 0.0],
-#     [106.0, 106.0, 106.0, 0.0, 0.0, 0.0, 0.0, 141.0, 141.0, 141.0, 0.0, 0.0,
-#      0.0],
-#     [106.0, 106.0, 0.0, 0.0, 0.0, 0.0, 0.0, 141.0, 141.0, 0.0, 0.0, 0.0, 0.0],
-#
-#     [100.0, 0.0, 0.0, 0.0, 100.0, 0.0, 0.0, 100.0, 0.0, 0.0, 100.0, 100.0,
-#      100.0],
-#     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 100.0, 100.0, 100.0],
-#     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 100.0, 100.0, 100.0],
-#     [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-# ])
-
 workingdir = os.getcwd()
 
 # origin_probs = np.load('conn_probs_ini.npy')
 
 
 def create_individual():
-    probs = np.array([2000.0, 2000.0, 1500.0, 450.0,
-                      2000.0, 2000.0, 1500.0,
-                      2000.0, 2000.0, 1500.0,
-                      2000.0, 2000.0, 1500.0
-                       ])
+    probs = np.array([2000, 1500, 1000, 450,
+                      2000, 1500, 1000,
+                      1500, 1500, 1000,
+                      2000, 1500, 1000])
     # probs = np.concatenate((origin_probs, probs))
     return probs
 
 
 # fitness
-def evaluate(result_fr, target_fr):
+def evaluate(r_arr, t_arr): # result vs. target
+    # fitness tuple to be returned
     tup = ()
-    # distance to target fr
-    for t, r in zip(target_fr, result_fr):
+    # distance to target correlations
+    for r, t in zip(r_arr.flatten(), t_arr.flatten):
         # break if nan appears
-        if np.isnan(t) or np.isnan(r):
-            for i in range(len(target_fr)):
-                if i == 0:
-                    tup = (10,)
-                else:
-                    tup = tup + (10,)
+        if np.isnan(r) or np.isnan(t):
+            tup = np.nan
             break
-        dev = np.abs(t - r)
+        dev = r - t
         if not tup:
             tup = (dev, )
         else:
@@ -91,7 +61,7 @@ def evaluate(result_fr, target_fr):
     return tup
 
 
-def cxOnePointStr(ind1, ind2):
+def cross_conn(ind1, ind2):
     size = min(len(ind1), len(ind2))
     cxpoint = randint(1, size - 1)
     indCls = type(ind1)
@@ -103,20 +73,19 @@ def cxOnePointStr(ind1, ind2):
     return indCls(new1), indCls(new2)
 
 
-def mutSNP1(ind, p):
+def mut_conn(ind, p):
     assert (0 <= p <= 1)
     new = ind
     for i, conn in enumerate(new):
-        if np.random.random() <= p and i != 3:
-            mut_sd = mut_degrees['minor']
-            # if dia_arr_exp[i, j] != 0:
-            #     mut_sd = mut_degrees['minor']
-            # else:
-            #     mut_sd = mut_degrees['major']
-            # mutation
+        if np.random.random() <= p:
+            if i == 3:
+                mut_sd = mut_degrees['minor']
+            else:
+                mut_sd = mut_degrees['minor']
             new_conn = conn + mut_sd * conn * (np.random.randn())
             new[i] = new_conn
     return type(ind)(new)
+
 
 def clone_ind(ind_list, times):
     # indCls = type(ind_list[0])
@@ -130,6 +99,7 @@ def clone_ind(ind_list, times):
             return_list.append(box.clone(ind_list[i]))
     return return_list
 
+
 def combine_pop(pop1, pop2):
     indCls = type(pop1[0])
     return_list = []
@@ -141,7 +111,7 @@ def combine_pop(pop1, pop2):
 
 
 def do_and_check(survivors, g):
-    # divide into groups of 10
+    # divide into groups of n
     n = 5
     for i in range(int(len(survivors) / n)):
         # do the simulations
@@ -168,7 +138,7 @@ def do_and_check(survivors, g):
 
 
 # fitness function should minimize the difference between present and target str
-creator.create('FitMin', base.Fitness, weights=(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1))
+creator.create('FitMin', base.Fitness, weights=(-1, ))
 # individual is a list (conn map)
 creator.create('Individual', list, fitness=creator.FitMin)  # , n=len(target))
 
@@ -179,26 +149,26 @@ box.register('ind', tools.initIterate, creator.Individual, box.create_ind)
 box.register('pop', tools.initRepeat, list, box.ind)
 
 box.register('evaluate', evaluate)
-box.register('crossover', cxOnePointStr)
-box.register('mutate', mutSNP1)
-box.register('select', tools.selNSGA2)
-#box.register('select', tools.selTournament, tournsize=3)
+box.register('crossover', cross_conn)
+box.register('mutate', mut_conn)
+# box.register('select', tools.selNSGA2)
+box.register('select', tools.selTournament, tournsize=3)
 
 
 ### INITIALIZATION
 population = box.pop(n=N_ind)
 for ind in population:
-    ind.fitness.values = (100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0,
-                          100.0, 100.0, 100.0, 100.0, 100.0, 100.0)
+    ind.fitness.values = (100.0, )
 
 # ### EVOLUTION
 g = 0
-# fits = [10 for i in population]
 fitness_evolved = []
 # fitness_evolved = np.zeros((max_generations, 5))
 # best5_inds_evolved = np.zeros((max_generations, 5))
-n_front = int(N_ind/2)
+n_selected = int(N_ind/2)
 while g < max_generations:
+    np.set_printoptions(precision=4, suppress=True)
+
     ## SELECTION
     children = clone_ind(population, 1)
 
@@ -211,8 +181,6 @@ while g < max_generations:
         new1, new2 = box.crossover(children[i], children[i + half])
         children[i] = new1
         children[i + half] = new2
-        # new1 and new2 are new instances of Individual class, so there is no
-        # need to delete or invalidate their fitness values
 
     # mutation
     for i, ind in enumerate(children):
@@ -229,35 +197,43 @@ while g < max_generations:
         else:
             print('no result file!')
             result_arr = np.full(13, np.nan)
-        ind.fitness.values = box.evaluate(result_arr, target_arr)
+        fit_values = box.evaluate(result_arr, target_arr)
+        if fit_values == np.nan:
+            ind.fitness.values = np.inf  # works?
+        else:
+            ind.fitness.values = np.sqrt(
+                np.mean(np.sum(np.square(fit_values))))
 
+    # print('\ng{:02d} parents = '.format(g))
+    # for ind in population:
+    #     print(np.sum(ind))
+    #     print(ind.fitness.values)
     population = combine_pop(population, children)
-
-    print('g{:02d} parents and children fitness values = '.format(g))
-    for ind in population:
-        print(ind.fitness.values)
-
-    population = box.select(population, n_front)
-
-    population = clone_ind(population, int(N_ind/n_front))
-
-    print('g{:02d} fitness values after selection = '.format(g))
-    for ind in population:
+    # print('\ng{:02d} parents and children combined = '.format(g))
+    # for ind in population:
+    #     print(np.sum(ind))
+    #     print(ind.fitness.values)
+    population = box.select(population, n_selected)
+    population = clone_ind(population, int(N_ind / n_selected))
+    print('\ng{:02d} population after selection = '.format(g))
+    for i, ind in enumerate(population):
+        print('{}. {}'.format(i, np.sum(ind)))
         print(ind.fitness.values)
 
     # save fitness values
-    tmp = [list(ind.fitness.values) for ind in population]
+    tmp = [ind.fitness.values for ind in population]
+    # tmp = [list(ind.fitness.values) for ind in population]
     fitness_evolved.append(tmp)
+    order_by_fitness = np.arange(0, 20)[np.argsort(tmp)]
+    # order by fitness sum
+    # fitness_sum = [np.sum(i.fitness.values) for i in population]
+    # print('fitness sums = {}\n'.format(fitness_sum))
+    # order_by_fitness = np.arange(0, 20)[np.argsort(fitness_sum)]
     np.save(
         workingdir + '/output/fitness_evolved_g{:02d}.npy'.format(g),
         fitness_evolved)
-
-    # save order by fitness sum
-    fitness_sum = [np.sum(i.fitness.values) for i in population]
-    print('fitness sums = {}\n'.format(fitness_sum))
-    order_by_fitness = np.arange(0, 20)[np.argsort(fitness_sum)]
     np.save(
-        workingdir + '/output/order_by_fitness_sum_g{:02d}.npy'.format(g),
+        workingdir + '/output/order_by_fitness_g{:02d}.npy'.format(g),
         order_by_fitness)
     np.save(
         workingdir + '/output/best_ind_g{:02d}.npy'.format(g),
@@ -274,12 +250,12 @@ while g < max_generations:
     g += 1
 
 plt.figure()
-plt.plot(np.arange(g), np.sqrt(fitness_evolved[:g, :]/10), 'b.')
-# plt.hlines(0.06, 0, g + 10, 'k', linestyles='--', label='pre vs. post RMSE')
-# plt.hlines(0, 0, g + 10, 'w', linestyles='--')
+plt.plot(np.arange(g), fitness_evolved[:g, :], 'b.')
+plt.hlines(0.06, 0, g + 10, 'k', linestyles='--', label='RMSE of (pre vs. post)')
+plt.hlines(0, 0, g + 10, 'w', linestyles='--')
 plt.legend()
 plt.xlabel('Number of generations')
-plt.ylabel('Fitness')
+plt.ylabel('Fitness (RMSE of correlations)')
 plt.title("Evolution of fitness")
 plt.tight_layout()
 plt.savefig(workingdir + '/output/genetic_hj.png')
