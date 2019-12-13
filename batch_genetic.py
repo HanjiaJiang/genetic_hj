@@ -16,7 +16,7 @@ def batch_genetic(conn_maps, g, map_ids):
     # job description file
     jdf_name = simname + '_batch.jdf'
 
-    for i, map in enumerate(conn_maps):
+    for i, conn_map in enumerate(conn_maps):
         # print(map)
         # output directory for this parameter combination
         this_output_dir = 'g={0:02d}_ind={1:02d}'.format(g, map_ids[i])
@@ -31,15 +31,16 @@ def batch_genetic(conn_maps, g, map_ids):
 
         # copy all the relevant files to the output directory
         os.system('cp run_network.py ' + full_output_dir)
-        os.system('cp network.py ' + full_output_dir)
-        os.system('cp network_params.py ' + full_output_dir)
-        os.system('cp sim_params.py ' + full_output_dir)
-        os.system('cp helpers.py ' + full_output_dir)
-        os.system('cp stimulus_params.py ' + full_output_dir)
-        os.system('cp conn.py ' + full_output_dir)
-        os.system('cp functions.py ' + full_output_dir)        
-        os.system('cp microcircuit_tools.py ' + full_output_dir)
-        np.save(os.path.join(full_output_dir, 'conn_probs.npy'), map)
+        os.system('cp microcircuit/network.py ' + full_output_dir)
+        os.system('cp microcircuit/network_params.py ' + full_output_dir)
+        os.system('cp microcircuit/sim_params.py ' + full_output_dir)
+        os.system('cp microcircuit/helpers.py ' + full_output_dir)
+        os.system('cp microcircuit/stimulus_params.py ' + full_output_dir)
+        os.system('cp microcircuit/conn.py ' + full_output_dir)
+        os.system('cp microcircuit/functions.py ' + full_output_dir)        
+        os.system('cp microcircuit/microcircuit_tools.py ' + full_output_dir)
+        os.system('cp microcircuit/raw_data.py ' + full_output_dir)
+        np.save(os.path.join(full_output_dir, 'ind.npy'), conn_map)
 
         os.chdir(full_output_dir)
 

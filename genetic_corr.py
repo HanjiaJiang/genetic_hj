@@ -13,15 +13,15 @@ from batch_genetic import batch_genetic
 
 wait_1min = False
 
-N_ind = 40      # number of individuals in a population
+N_ind = 20      # number of individuals in a population
 p_cx = 0.8      # cross-over probability
 p_mut = 0.2     # mutation probability
-max_generations = 3
+max_generations = 50
 # s.d. of mutation range (unit: times of mean)
 mut_degrees = {'major': 0.3, 'minor': 0.05}
 set_mut_bound = False
 mut_bound = [0.5, 1.5]
-n_round = 10
+n_round = 5
 
 target_arr = np.array([[0.123, 0.145, 0.112, 0.113],
                         [0.145, 0.197, 0.163, 0.193],
@@ -173,7 +173,7 @@ g = 0
 fitness_evolved = []
 # fitness_evolved = np.zeros((max_generations, 5))
 # best5_inds_evolved = np.zeros((max_generations, 5))
-n_selected = int(N_ind/2)
+n_selected = int(N_ind/4)
 while g < max_generations:
     np.set_printoptions(precision=4, suppress=True)
 
@@ -218,31 +218,16 @@ while g < max_generations:
         errors = box.evaluate(result_arr, target_arr)
         # errors_list.append(np.array(errors))
         if errors == np.nan:
-            ind.fitness.values = (np.inf, ) # works?
+            ind.fitness.values = (10.0, ) # works?
             print('fit_values == np.nan')
         else:
             ind.fitness.values = (np.sqrt(np.mean(np.square(errors))), )
             print('fit_values = \n{}'.format(errors))
 
-    print('\ng{:02d} population before combining = '.format(g))
-    for i, ind in enumerate(population):
-        print('{}. {}'.format(i, np.sum(ind)))
-        print(ind.fitness.values)
-
-    # combine and select
-    population = combine_pop(population, children)
-
-    print('\ng{:02d} population after combining = '.format(g))
-    for i, ind in enumerate(population):
-        print('{}. {}'.format(i, np.sum(ind)))
-        print(ind.fitness.values)
-
-    population = box.select(population, n_selected)
-
     # save and print
-    fitness_evolved.append([ind.fitness.values[0] for ind in population])
-    values = [ind.fitness.values[0] for ind in population]
-    order_by_fitness = np.arange(0, n_selected)[np.argsort(values)]
+    fitness_evolved.append([ind.fitness.values[0] for ind in children])
+    values = [ind.fitness.values[0] for ind in children]
+    order_by_fitness = np.arange(0, N_ind)[np.argsort(values)]
     # np.save(workingdir +'/output/errors_g{:02d}.npy'.format(g), np.array(errors_list))
     np.save(
         workingdir + '/output/population_selected_g{:02d}.npy'.format(g),
@@ -253,6 +238,21 @@ while g < max_generations:
     np.save(
         workingdir + '/output/order_by_fitness_g{:02d}.npy'.format(g),
         order_by_fitness)
+
+    # print('\ng{:02d} population before combining = '.format(g))
+    # for i, ind in enumerate(population):
+    #     print('{}. {}'.format(i, np.sum(ind)))
+    #     print(ind.fitness.values)
+
+    # combine and select
+    # population = combine_pop(population, children)
+
+    # print('\ng{:02d} population after combining = '.format(g))
+    # for i, ind in enumerate(population):
+    #     print('{}. {}'.format(i, np.sum(ind)))
+    #     print(ind.fitness.values)
+
+    population = box.select(children, n_selected)
 
     print('\ng{:02d} population after selection = '.format(g))
     for i, ind in enumerate(population):
